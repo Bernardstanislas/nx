@@ -13,7 +13,9 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use super::{Component, Frame};
 use crate::native::tui::action::Action;
+
 use crate::native::tui::theme::THEME;
+use crate::native::tui::utils::is_in_vscode;
 
 pub struct HelpPopup {
     scroll_offset: usize,
@@ -110,7 +112,7 @@ impl HelpPopup {
             ])
             .split(popup_layout[1])[1];
 
-        let keybindings = vec![
+        let mut keybindings = vec![
             // Misc
             ("?", "Toggle this popup"),
             ("q or <ctrl>+c", "Quit the TUI"),
@@ -148,6 +150,11 @@ impl HelpPopup {
             ("i", "Interact with a continuous task when it is in focus"),
             ("<ctrl>+z", "Stop interacting with a continuous task"),
         ];
+
+        if is_in_vscode() {
+            // add Copilot specific keybindings for AI assistance
+            keybindings.extend([("", ""), ("a", "Allow Copilot to assist with this task")]);
+        }
 
         let mut content: Vec<Line> = vec![
             // Welcome text
