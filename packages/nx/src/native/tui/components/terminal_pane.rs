@@ -13,9 +13,9 @@ use ratatui::{
 use std::{io, sync::Arc};
 use tui_term::widget::PseudoTerminal;
 
-use super::tasks_list::TaskStatus;
-use crate::native::tui::pty::PtyInstance;
+use crate::native::tui::tasks_list::TaskStatus;
 use crate::native::tui::theme::THEME;
+use crate::native::tui::{pty::PtyInstance, vscode};
 
 pub struct TerminalPaneData {
     pub pty: Option<Arc<PtyInstance>>,
@@ -86,6 +86,18 @@ impl TerminalPaneData {
                 // Handle 'i' to enter interactive mode for in progress tasks
                 KeyCode::Char('i') if self.can_be_interactive && !self.is_interactive => {
                     self.set_interactive(true);
+                    return Ok(());
+                }
+                KeyCode::Char('a') => {
+                    let Some(screen) = pty.get_screen() else {
+                        return Ok(());
+                    };
+                    // todo(cammisuli): we can potentially use the screen buffer with a few lines back instead of the whole content to save on tokens
+                    vscode::send_vscode_message(screen.all_contents(), "/home/jon/dev/nx")
+                        .inspect_err(|e| {
+                            tracing::trace!("Error sending message to vscode: {}", e);
+                        })
+                        .ok();
                     return Ok(());
                 }
                 // Only send input to PTY if we're in interactive mode

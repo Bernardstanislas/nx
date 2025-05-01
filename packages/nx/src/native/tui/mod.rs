@@ -8,3 +8,4 @@ pub mod theme;
 #[allow(clippy::module_inception)]
 pub mod tui;
 pub mod utils;
+pub mod vscode;
