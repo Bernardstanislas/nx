@@ -5,6 +5,7 @@ import {
   type Tree,
 } from '@nx/devkit';
 import {
+  ajvVersion,
   analogVitestAngular,
   edgeRuntimeVmVersion,
   happyDomVersion,
@@ -54,6 +55,7 @@ export function ensureDependencies(
 
   if (schema.includeLib) {
     devDependencies['vite-plugin-dts'] = vitePluginDtsVersion;
+    devDependencies['ajv'] = ajvVersion;
   }
 
   return addDependenciesToPackageJson(host, {}, devDependencies);

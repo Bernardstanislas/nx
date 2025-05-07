@@ -12,6 +12,9 @@ export const happyDomVersion = '~9.20.3';
 export const edgeRuntimeVmVersion = '~3.0.2';
 export const jitiVersion = '2.4.2';
 
+// Peer dependecies
+export const ajvVersion = '^8.0.0'; // Needed for vite-plugin-dts to be hoisted
+
 export const analogVitestAngular = '~1.14.1';
 
 // Coverage providers
