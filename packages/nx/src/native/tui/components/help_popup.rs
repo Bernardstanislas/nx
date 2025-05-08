@@ -15,7 +15,6 @@ use super::{Component, Frame};
 use crate::native::tui::action::Action;
 
 use crate::native::tui::theme::THEME;
-use crate::native::tui::nx_console;
 
 #[derive(Default)]
 pub struct HelpPopup {
