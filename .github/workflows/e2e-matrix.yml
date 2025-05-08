@@ -81,12 +81,20 @@ jobs:
         id: homebrew-cache-dir-path
         run: echo "dir=$(brew --cache)" >> $GITHUB_OUTPUT
 
+      - name: Tap wix/brew
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: HOMEBREW_NO_AUTO_UPDATE=1 brew tap wix/brew
+
       - name: Cache Homebrew
         if: ${{ matrix.os == 'macos-latest' }}
         uses: actions/cache@v4
         with:
+          path: |
+            # the downloaded bottles/cache
+            ${{ steps.homebrew-cache-dir-path.outputs.dir }}
+            # the tapped repo itself
+            /opt/homebrew/Library/Taps/wix/homebrew-brew
           lookup-only: true
-          path: ${{ steps.homebrew-cache-dir-path.outputs.dir }}
           key: brew-${{ matrix.node_version }}
           restore-keys: |
             brew-
@@ -148,6 +156,12 @@ jobs:
           version: 9.8.0
           run_install: false
 
+      - name: Install bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          
+
       - name: Use Node.js ${{ matrix.node_version }}
         uses: actions/setup-node@v4
         with:
@@ -200,13 +214,36 @@ jobs:
       - name: Install Cypress
         if: steps.cache-cypress.outputs.cache-hit != 'true'
         run: npx cypress install
-
-      - name: Install applesimutils, reset ios simulators
+        
+      - name: Ensure AppleSimUtils is installed & reset simulators
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
-          HOMEBREW_NO_AUTO_UPDATE=1 brew tap wix/brew >/dev/null
-          HOMEBREW_NO_AUTO_UPDATE=1 brew install applesimutils >/dev/null
-          xcrun simctl shutdown all && xcrun simctl erase all
+          set -eux
+      
+          # 1) Skip if already on the runner
+          if ! command -v applesimutils >/dev/null; then
+      
+            # 2) Fetch the formula locally
+            curl -fsSL \
+              https://raw.githubusercontent.com/wix-incubator/homebrew-brew/master/Formula/applesimutils.rb \
+              -o applesimutils.rb
+      
+            # 3) Install from the local file (bypassing the remote‐URL guard)
+            HOMEBREW_NO_AUTO_UPDATE=1 \
+              brew install --quiet ./applesimutils.rb
+      
+            # (optional) remove the downloaded formula
+            rm applesimutils.rb
+          fi
+      
+          # sanity check
+          applesimutils --version
+      
+          # 4) Reset all iOS simulators
+          xcrun simctl shutdown all
+          xcrun simctl erase all
+      
+      
 
       - name: Configure git metadata (needed for lerna smoke tests)
         run: |
