@@ -22,7 +22,6 @@ use crate::native::{
     tasks::types::{Task, TaskResult},
 };
 
-use super::components::countdown_popup::CountdownPopup;
 use super::components::help_popup::HelpPopup;
 use super::components::layout_manager::{
     LayoutAreas, LayoutManager, PaneArrangement, TaskListVisibility,
@@ -38,6 +37,7 @@ use super::theme::THEME;
 use super::tui;
 use super::utils::normalize_newlines;
 use super::{action::Action, nx_console::messaging::NxConsoleMessageConnection};
+use super::{components::countdown_popup::CountdownPopup, nx_console};
 
 pub struct App {
     pub components: Vec<Box<dyn Component>>,
@@ -734,8 +734,25 @@ impl App {
             debug!("{action:?}");
         }
         match &action {
+            Action::StartCommand(_) => {
+                self.console_messenger
+                    .as_ref()
+                    .and_then(|c| c.start_running_tasks());
+            }
+            Action::Tick => {
+                self.console_messenger.as_ref().and_then(|messenger| {
+                    self.components
+                        .iter()
+                        .find_map(|c| c.as_any().downcast_ref::<TasksList>())
+                        .and_then(|tasks_list| {
+                            messenger.update_running_tasks(&tasks_list.tasks, &self.pty_instances)
+                        })
+                });
+            }
             // Quit immediately
-            Action::Quit => self.quit_at = Some(std::time::Instant::now()),
+            Action::Quit => {
+                self.quit_at = Some(std::time::Instant::now());
+            }
             // Cancel quitting
             Action::CancelQuit => {
                 self.quit_at = None;
@@ -1412,15 +1429,17 @@ impl App {
         parser_and_writer: External<(ParserArc, WriterArc)>,
     ) {
         // Access the contents of the External
-        let parser_and_writer_clone = parser_and_writer.clone();
-        let (parser, writer) = &parser_and_writer_clone;
         let pty = Arc::new(
-            PtyInstance::new(task_id.to_string(), parser.clone(), writer.clone())
-                .map_err(|e| napi::Error::from_reason(format!("Failed to create PTY: {}", e)))
-                .unwrap(),
+            PtyInstance::new(
+                task_id.to_string(),
+                parser_and_writer.0.clone(),
+                parser_and_writer.1.clone(),
+            )
+            .map_err(|e| napi::Error::from_reason(format!("Failed to create PTY: {}", e)))
+            .unwrap(),
         );
 
-        self.pty_instances.insert(task_id.to_string(), pty.clone());
+        self.pty_instances.insert(task_id.to_string(), pty);
     }
 
     fn create_empty_parser_and_noop_writer() -> (ParserArc, External<(ParserArc, WriterArc)>) {
@@ -1459,9 +1478,13 @@ impl App {
         self.dispatch_action(Action::UpdateFocus(focus));
     }
 
-    pub fn set_console_messenger(&mut self, messenger: Option<NxConsoleMessageConnection>) {
-        self.console_messenger = messenger;
-        if self.console_messenger.is_some() {
+    pub fn set_console_messenger(&mut self, messenger: NxConsoleMessageConnection) {
+        self.console_messenger = Some(messenger);
+        if self
+            .console_messenger
+            .as_ref()
+            .is_some_and(|c| c.is_connected())
+        {
             self.dispatch_action(Action::ConsoleMessagesAvailable(true));
         }
     }
