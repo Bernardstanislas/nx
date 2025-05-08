@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 process.env.NX_SKIP_NATIVE_FILE_CACHE = 'true';
+process.env.NX_TUI = 'true';
 
 const {
   runCommandForTasks,
@@ -23,6 +24,14 @@ const {
 } = require('./build/packages/nx/src/project-graph/build-project-graph');
 
 async function main() {
+  // sleep for 5 seconds and then continue
+  await new Promise((resolve) => {
+    setTimeout(() => {
+      console.log('5 seconds have passed');
+      resolve();
+    }, 10000);
+  });
+
   console.log(process.stdin.isTTY);
   console.log('Starting runCommandForTasks demo script');
 
@@ -91,6 +100,7 @@ async function main() {
       configuration: undefined,
       targets: ['watch'],
       parallel: undefined,
+      outputStyle: 'tui',
     };
 
     // Set environment variables based on args
